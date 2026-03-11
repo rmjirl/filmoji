@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FILMOJI — Daily Film Puzzle</title>
+<meta property="og:title" content="FILMOJI — Daily Film Puzzle">
+<meta property="og:description" content="Guess 5 films from emojis. New puzzles every day. Can you beat the clock?">
+<meta property="og:image" content="https://filmoji.lol/og-image.png">
+<meta property="og:url" content="https://filmoji.lol">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FILMOJI — Daily Film Puzzle">
+<meta name="twitter:description" content="Guess 5 films from emojis. New puzzles every day. Can you beat the clock?">
+<meta name="twitter:image" content="https://filmoji.lol/og-image.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- ── Supabase ── -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --cream:#F5EDD6; --amber:#E8A020; --amber-dark:#C17A10; --red:#C0392B;
+  --brown:#3D1F0A; --dark:#1A0E04; --ticket:#FDF3DC; --text:#2C1A06;
+  --muted:#8B6A3E; --correct:#2E7D32; --wrong:#C0392B; --almost:#E8A020;
+  --surface:rgba(255,255,255,0.04); --border:rgba(232,160,32,0.2);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--dark);color:var(--cream);min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+.marquee-bar{width:100%;background:var(--amber);padding:7px 0;overflow:hidden;border-bottom:3px solid var(--amber-dark);flex-shrink:0}
+.marquee-inner{display:inline-block;white-space:nowrap;animation:marquee 32s linear infinite;font-family:'DM Mono',monospace;font-size:11px;color:var(--dark);letter-spacing:2.5px;text-transform:uppercase;font-weight:500}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+nav{width:100%;max-width:720px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:44px;margin-bottom:0}
+
+.nav-tabs{display:flex;gap:4px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:4px}
+.nav-tab{background:none;border:none;color:rgba(245,237,214,0.45);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:6px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.nav-tab.active{background:var(--amber);color:var(--dark)}
+.nav-tab:hover:not(.active){color:var(--cream)}
+.user-chip{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);padding:6px 14px;border-radius:100px;font-family:'DM Mono',monospace;font-size:12px;color:var(--amber);cursor:pointer;transition:all 0.2s}
+.user-chip:hover{border-color:var(--amber);background:rgba(232,160,32,0.08)}
+.page{display:none;width:100%;max-width:680px;padding:0 20px 60px;animation:fadeUp 0.4s ease}
+.page.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.game-header{text-align:center;padding:14px 0 6px}
+.logo{font-family:'Playfair Display',serif;font-size:clamp(44px,9vw,76px);font-weight:900;line-height:1;letter-spacing:-2px;text-shadow:4px 4px 0 var(--amber-dark),8px 8px 0 rgba(0,0,0,0.25);margin-bottom:10px}
+.tagline{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--amber);margin-bottom:10px}
+.daily-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(192,57,43,0.15);border:1px solid rgba(192,57,43,0.35);color:#E57373;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:5px 14px;border-radius:100px}
+.pulse{width:6px;height:6px;background:#E57373;border-radius:50%;animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)}}
+
+.stats-strip{display:flex;gap:8px;justify-content:center;margin:12px 0;flex-wrap:wrap}
+.stat-chip{background:var(--surface);border:1px solid var(--border);padding:6px 14px;border-radius:100px;font-family:'DM Mono',monospace;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:5px}
+.timer-chip{background:var(--surface);border:1px solid var(--border);padding:6px 14px;border-radius:100px;font-family:'DM Mono',monospace;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:5px;transition:all 0.3s}
+.timer-chip.warning{border-color:rgba(232,160,32,0.6);background:rgba(232,160,32,0.1);color:var(--amber)}
+.timer-chip.danger{border-color:rgba(192,57,43,0.6);background:rgba(192,57,43,0.12);color:var(--wrong);animation:timerPulse 0.6s infinite}
+.timer-chip.negative{border-color:rgba(192,57,43,0.8);background:rgba(192,57,43,0.2);color:var(--wrong)}
+@keyframes timerPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.next-countdown{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-top:8px;letter-spacing:1px}
+
+.start-overlay{position:absolute;inset:0;background:rgba(26,14,4,0.75);backdrop-filter:blur(8px);border-radius:18px;z-index:10;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+.start-overlay.hidden{display:none}
+.start-btn{background:var(--amber);color:var(--dark);border:none;padding:16px 48px;border-radius:100px;font-family:'Playfair Display',serif;font-size:22px;font-weight:900;cursor:pointer;box-shadow:0 0 0 0 rgba(232,160,32,0.5);animation:startPulse 1.8s infinite;letter-spacing:0.5px;transition:transform 0.15s}
+.start-btn:hover{transform:scale(1.06)}
+.start-btn:active{transform:scale(0.97)}
+@keyframes startPulse{0%,100%{box-shadow:0 0 0 0 rgba(232,160,32,0.5)}60%{box-shadow:0 0 0 18px rgba(232,160,32,0)}}
+.start-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(245,237,214,0.5)}
+
+.film-strip{display:flex;gap:8px;margin:4px 0 14px;justify-content:center}
+.film-pip{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:10px;border:2px solid rgba(232,160,32,0.2);font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:rgba(245,237,214,0.2);cursor:default;transition:all 0.35s;position:relative;background:rgba(255,255,255,0.03)}
+.film-pip.active{border-color:var(--amber);background:rgba(232,160,32,0.12);color:var(--amber);box-shadow:0 0 16px rgba(232,160,32,0.35);transform:scale(1.08)}
+.film-pip.solved{border-color:var(--correct);background:rgba(46,125,50,0.15);color:var(--correct)}
+.film-pip.skipped{border-color:var(--muted);background:rgba(0,0,0,0.15);color:var(--muted);opacity:0.7}
+.film-pip.failed{border-color:var(--wrong);background:rgba(192,57,43,0.12);color:var(--wrong)}
+
+.ticket-wrap{position:relative;margin-top:4px;border-radius:18px}
+.ticket{background:var(--ticket);border-radius:18px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,0.55);position:relative}
+.ticket-punch-l,.ticket-punch-r{position:absolute;width:30px;height:30px;background:var(--dark);border-radius:50%;top:50%;transform:translateY(-50%);z-index:3}
+.ticket-punch-l{left:-15px}.ticket-punch-r{right:-15px}
+.ticket-top{background:var(--brown);padding:14px 32px 14px;border-radius:18px 18px 0 0;position:relative}
+.ticket-divider{height:2px;background:repeating-linear-gradient(90deg,var(--amber) 0,var(--amber) 14px,transparent 14px,transparent 22px);margin:0}
+.ticket-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ticket-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--amber);display:flex;align-items:center;gap:7px}
+.ticket-label::before,.ticket-label::after{content:'★';font-size:8px}
+.ticket-num{font-family:'Playfair Display',serif;font-size:13px;color:rgba(245,237,214,0.45);font-style:italic}
+.emoji-stage{display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 0 10px;min-height:80px;flex-wrap:wrap}
+.emoji-orb{font-size:clamp(32px,7vw,50px);display:inline-block;animation:popIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.35));cursor:default;transition:transform 0.2s;user-select:none}
+.emoji-orb:hover{transform:scale(1.18) rotate(-6deg)}
+@keyframes popIn{from{opacity:0;transform:scale(0.2) rotate(-20deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+.hint-meta{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.letters-hint{font-family:'DM Mono',monospace;font-size:12px;color:rgba(245,237,214,0.4);letter-spacing:1px}
+.hint-btn{background:none;border:1px solid rgba(232,160,32,0.3);color:var(--amber);font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;padding:5px 14px;border-radius:100px;cursor:pointer;transition:all 0.2s;text-transform:uppercase}
+.hint-btn:hover{background:rgba(232,160,32,0.12);border-color:var(--amber)}
+.hint-btn:disabled{opacity:0.25;cursor:default}
+
+.ticket-bottom{background:var(--ticket);padding:20px 32px 28px;border-radius:0 0 18px 18px;color:var(--text)}
+.hint-reveal{background:rgba(232,160,32,0.1);border:1px dashed rgba(232,160,32,0.4);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--amber-dark);display:none;animation:fadeUp 0.3s ease}
+.hint-reveal.show{display:block}
+.hint-reveal-2{background:rgba(192,57,43,0.08);border:1px dashed rgba(192,57,43,0.35);color:#8B3A2E}
+.guess-history{min-height:32px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px}
+.guess-row{display:flex;align-items:center;gap:8px;animation:slideIn 0.2s ease both}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.guess-txt{font-family:'DM Mono',monospace;font-size:14px;padding:7px 14px;border-radius:8px;flex:1;letter-spacing:0.5px}
+.guess-txt.wrong{background:rgba(192,57,43,0.1);color:var(--wrong);text-decoration:line-through}
+.guess-txt.correct{background:rgba(46,125,50,0.1);color:var(--correct);font-weight:600}
+.guess-txt.almost{background:rgba(232,160,32,0.1);color:var(--almost)}
+.guess-icon{font-size:17px;flex-shrink:0}
+
+.skip-reveal{background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.25);border-radius:10px;padding:12px 16px;margin-bottom:12px;display:none;animation:fadeUp 0.3s ease}
+.skip-reveal.show{display:flex;align-items:center;gap:10px}
+.skip-reveal-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.skip-reveal-answer{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:var(--wrong)}
+
+.input-wrap{position:relative;margin-bottom:10px}
+.guess-input{width:100%;padding:13px 120px 13px 18px;background:white;border:2px solid rgba(61,31,10,0.14);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;transition:border-color 0.2s,box-shadow 0.2s;caret-color:var(--amber-dark)}
+.guess-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(232,160,32,0.14)}
+.guess-input::placeholder{color:rgba(61,31,10,0.28)}
+.guess-input:disabled{opacity:0.5;background:#f5f0e8}
+.input-btns{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:5px}
+.submit-btn{background:var(--amber);border:none;width:36px;height:36px;border-radius:8px;font-size:16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;color:var(--dark);font-weight:700}
+.submit-btn:hover{background:var(--amber-dark);transform:scale(1.05)}
+.skip-btn{background:rgba(61,31,10,0.08);border:1px solid rgba(61,31,10,0.15);color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:0 10px;height:36px;border-radius:8px;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.skip-btn:hover{background:rgba(192,57,43,0.08);border-color:rgba(192,57,43,0.3);color:var(--wrong)}
+.skip-btn:disabled{opacity:0.25;cursor:default}
+
+.lives-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.lives{display:flex;gap:5px}
+.life{font-size:18px;transition:all 0.3s}
+.life.lost{filter:grayscale(1) opacity(0.25);transform:scale(0.82)}
+.attempts-txt{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+.score-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(232,160,32,0.12);border:1px solid rgba(232,160,32,0.3);padding:6px 16px;border-radius:100px;font-family:'DM Mono',monospace;font-size:13px;color:var(--amber);letter-spacing:1px;margin-top:6px}
+.score-chip strong{font-size:16px;font-family:'Playfair Display',serif}
+
+.already-played{background:rgba(46,125,50,0.12);border:1px solid rgba(46,125,50,0.3);border-radius:14px;padding:20px 24px;text-align:center;margin-top:12px;display:none}
+.already-played.show{display:block}
+.already-played h3{font-family:'Playfair Display',serif;font-size:20px;color:var(--correct);margin-bottom:6px}
+.already-played p{font-size:14px;color:var(--muted);margin-bottom:12px}
+
+/* ── Save Streak Modal ── */
+.streak-modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,14,4,0.88);backdrop-filter:blur(10px);z-index:650;align-items:center;justify-content:center;padding:20px}
+.streak-modal-overlay.show{display:flex}
+.streak-modal{background:var(--ticket);border-radius:22px;padding:32px 28px;max-width:380px;width:100%;text-align:center;color:var(--text);box-shadow:0 32px 90px rgba(0,0,0,0.65);animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both}
+.streak-fire{font-size:52px;margin-bottom:8px;display:block}
+.streak-modal h2{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;margin-bottom:6px;color:var(--brown)}
+.streak-modal p{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.streak-count{font-family:'Playfair Display',serif;font-size:48px;font-weight:900;color:var(--amber);line-height:1;margin-bottom:4px}
+.streak-label{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:20px;display:block}
+.btn-google{width:100%;background:#fff;color:#3c4043;border:1px solid #dadce0;padding:13px 16px;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.btn-google:hover{box-shadow:0 2px 8px rgba(0,0,0,0.15);transform:translateY(-1px)}
+.btn-google svg{width:18px;height:18px;flex-shrink:0}
+.btn-streak-skip{background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;padding:6px;width:100%}
+.btn-streak-skip:hover{color:var(--text)}
+
+.lb-header{text-align:center;padding:28px 0 20px}
+.lb-title{font-family:'Playfair Display',serif;font-size:clamp(32px,7vw,52px);font-weight:900;text-shadow:3px 3px 0 var(--amber-dark)}
+.lb-subtitle{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--amber);text-transform:uppercase;margin-top:6px}
+.lb-tabs{display:flex;gap:6px;margin:16px 0;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:4px}
+.lb-tab{flex:1;background:none;border:none;color:rgba(245,237,214,0.4);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:8px;border-radius:8px;cursor:pointer;transition:all 0.2s;text-align:center}
+.lb-tab.active{background:var(--amber);color:var(--dark)}
+.lb-tab:hover:not(.active){color:var(--cream)}
+.lb-table{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.lb-row{display:grid;grid-template-columns:44px 1fr auto;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(232,160,32,0.08);transition:background 0.15s;animation:slideIn 0.3s ease both}
+.lb-row:last-child{border-bottom:none}
+.lb-row:hover{background:rgba(232,160,32,0.05)}
+.lb-row.gold{background:rgba(232,160,32,0.1)}.lb-row.silver{background:rgba(200,200,200,0.06)}.lb-row.bronze{background:rgba(180,100,40,0.06)}.lb-row.mine{border-left:3px solid var(--amber)}
+.lb-rank{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;text-align:center}
+.lb-rank.gold-txt{color:#FFD700}.lb-rank.silver-txt{color:#C0C0C0}.lb-rank.bronze-txt{color:#CD7F32}.lb-rank.num{color:var(--muted);font-size:14px;font-family:'DM Mono',monospace}
+.lb-info{padding:0 12px}
+.lb-name{font-size:15px;font-weight:600;display:flex;align-items:center;gap:6px}
+.lb-name .you-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:var(--amber);color:var(--dark);padding:1px 7px;border-radius:100px;text-transform:uppercase}
+.lb-meta{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.5px}
+.lb-score{text-align:right}
+.lb-score-main{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--amber)}
+.lb-score-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.lb-empty{text-align:center;padding:40px 20px;font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);letter-spacing:1px}
+.my-stats{background:rgba(232,160,32,0.08);border:1px solid rgba(232,160,32,0.25);border-radius:16px;padding:20px 24px;margin-bottom:16px;display:none}
+.my-stats.show{display:block}
+.my-stats h3{font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+.my-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.my-stat{text-align:center;background:rgba(0,0,0,0.15);border-radius:10px;padding:10px 6px}
+.my-stat-val{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--cream);display:block}
+.my-stat-lbl{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:2px;display:block}
+
+.result-overlay{display:none;position:fixed;inset:0;background:rgba(26,14,4,0.88);backdrop-filter:blur(10px);z-index:500;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;cursor:pointer}
+.result-overlay.show{display:flex}
+.result-card{background:var(--ticket);border-radius:22px;padding:24px 28px 24px;max-width:460px;width:100%;text-align:center;color:var(--text);box-shadow:0 32px 90px rgba(0,0,0,0.65);animation:popIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both;position:relative;overflow:hidden;cursor:default;margin-top:8px}
+.result-card::before{display:none}
+.result-close-btn{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:12px;background:rgba(61,31,10,0.15);border:2px solid rgba(61,31,10,0.25);color:var(--brown);font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;z-index:10}
+.result-close-btn:hover{background:rgba(192,57,43,0.15);border-color:var(--wrong);color:var(--wrong)}
+.result-emoji{font-size:44px;margin-bottom:4px;display:block}
+.result-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:900;margin-bottom:2px;color:var(--brown)}
+.result-subtitle{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.result-score-display{font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--amber);line-height:1;margin-bottom:2px}
+.result-score-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.tap-hint{font-family:'DM Mono',monospace;font-size:10px;color:rgba(61,31,10,0.3);letter-spacing:1px;text-align:center;margin-top:10px;text-transform:uppercase}
+
+.film-summary{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;text-align:left}
+.film-summary-row{display:flex;align-items:center;gap:10px;background:rgba(61,31,10,0.05);border-radius:10px;padding:8px 12px}
+.film-summary-emoji{font-size:20px;flex-shrink:0}
+.film-summary-info{flex:1}
+.film-summary-title{font-size:14px;font-weight:600;color:var(--text);font-family:'Playfair Display',serif}
+.film-summary-result{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:1px}
+.film-summary-badge{font-size:16px;flex-shrink:0}
+.film-summary-pts{font-family:'DM Mono',monospace;font-size:11px;color:var(--amber);font-weight:600;flex-shrink:0}
+
+.share-box{background:rgba(61,31,10,0.06);border:1px dashed rgba(61,31,10,0.2);border-radius:10px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text);text-align:left;white-space:pre-wrap;margin-bottom:12px;line-height:1.7;letter-spacing:0.3px}
+.result-btns{display:flex;flex-direction:column;gap:10px}
+.share-row{display:flex;gap:8px}
+.btn-share{flex:1;background:var(--brown);color:var(--cream);border:none;padding:12px 8px;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-share:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.btn-share.x-btn{background:#000}
+.btn-share.ig-btn{background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4)}
+.btn-share.sms-btn{background:#2CA253}
+.btn-share.copy-btn{background:var(--brown)}
+.btn-lb{background:var(--amber);color:var(--dark);border:none;padding:12px;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;width:100%}
+.btn-lb:hover{background:var(--amber-dark);color:var(--cream);transform:translateY(-2px)}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,14,4,0.85);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--ticket);border-radius:20px;padding:32px;max-width:400px;width:100%;color:var(--text);box-shadow:0 24px 80px rgba(0,0,0,0.6);animation:popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both}
+.modal h2{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;margin-bottom:6px}
+.modal p{font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.5}
+.modal input{width:100%;padding:12px 16px;background:white;border:2px solid rgba(61,31,10,0.14);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--text);outline:none;transition:border-color 0.2s;margin-bottom:14px}
+.modal input:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(232,160,32,0.14)}
+.btn-go{width:100%;background:var(--amber);color:var(--dark);border:none;padding:13px;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all 0.2s}
+.btn-go:hover{background:var(--amber-dark);color:var(--cream)}
+
+.support-footer{width:100%;border-top:1px solid rgba(232,160,32,0.12);padding:40px 20px 50px;text-align:center;margin-top:20px}
+.support-inner{max-width:500px;margin:0 auto}
+.support-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.support-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:rgba(245,237,214,0.55);margin-bottom:6px}
+.support-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+.support-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.support-btn{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.04);border:1px solid rgba(232,160,32,0.18);color:rgba(245,237,214,0.5);font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.5px;padding:9px 18px;border-radius:100px;cursor:pointer;transition:all 0.2s;text-decoration:none}
+.support-btn:hover{background:rgba(232,160,32,0.08);border-color:rgba(232,160,32,0.4);color:var(--amber);transform:translateY(-1px)}
+.support-btn-icon{font-size:15px}
+.pay-modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,14,4,0.82);backdrop-filter:blur(8px);z-index:800;align-items:center;justify-content:center;padding:20px}
+.pay-modal-overlay.show{display:flex}
+.pay-modal{background:var(--ticket);border-radius:20px;padding:30px 28px;max-width:380px;width:100%;color:var(--text);box-shadow:0 24px 80px rgba(0,0,0,0.6);animation:popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;text-align:center}
+.pay-modal-icon{font-size:40px;margin-bottom:10px;display:block}
+.pay-modal h3{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;margin-bottom:6px;color:var(--brown)}
+.pay-modal p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+.pay-address-box{background:rgba(61,31,10,0.06);border:1px dashed rgba(61,31,10,0.2);border-radius:10px;padding:12px 16px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);word-break:break-all;margin-bottom:14px;text-align:left;line-height:1.6}
+.pay-address-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+.pay-qr{width:140px;height:140px;background:white;border-radius:12px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;border:1px solid rgba(61,31,10,0.1);overflow:hidden}
+.btn-copy-addr{width:100%;background:var(--amber);color:var(--dark);border:none;padding:12px;border-radius:10px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all 0.2s;margin-bottom:8px}
+.btn-copy-addr:hover{background:var(--amber-dark);color:var(--cream)}
+.btn-pay-close{background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;padding:6px}
+.btn-pay-close:hover{color:var(--text)}
+
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:400}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--brown);color:var(--cream);padding:11px 22px;border-radius:100px;font-family:'DM Mono',monospace;font-size:13px;z-index:700;opacity:0;transition:all 0.3s;white-space:nowrap;pointer-events:none;border:1px solid rgba(232,160,32,0.3);letter-spacing:0.5px}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-7px)}30%{transform:translateX(7px)}45%{transform:translateX(-5px)}60%{transform:translateX(5px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}}
+.shake{animation:shake 0.45s ease}
+
+@media(max-width:480px){
+  .ticket-top,.ticket-bottom{padding-left:22px;padding-right:22px}
+  .result-card{padding:24px 18px}
+  .my-stats-grid{grid-template-columns:repeat(2,1fr)}
+  .film-strip{gap:5px}
+  .film-pip{width:40px;height:40px;font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="confetti"></canvas>
+
+<div class="marquee-bar">
+  <div class="marquee-inner">
+    🎬 FILMOJI &nbsp;·&nbsp; 5 FILMS A DAY &nbsp;·&nbsp; 🍿 SKIP IF YOU'RE STUMPED &nbsp;·&nbsp; ⏱ RACE THE CLOCK &nbsp;·&nbsp; 🏆 CLIMB THE LEADERBOARD &nbsp;·&nbsp; 📤 SHARE YOUR SCORE &nbsp;·&nbsp;
+    🎬 FILMOJI &nbsp;·&nbsp; 5 FILMS A DAY &nbsp;·&nbsp; 🍿 SKIP IF YOU'RE STUMPED &nbsp;·&nbsp; ⏱ RACE THE CLOCK &nbsp;·&nbsp; 🏆 CLIMB THE LEADERBOARD &nbsp;·&nbsp; 📤 SHARE YOUR SCORE &nbsp;·&nbsp;
+  </div>
+</div>
+
+<nav>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('game')">🎬 Play</button>
+    <button class="nav-tab" onclick="showPage('leaderboard')">🏆 Board</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div id="googleSignInBtn" style="display:none;font-family:'DM Mono',monospace;font-size:11px;color:rgba(245,237,214,0.4);cursor:pointer;letter-spacing:0.5px;border:1px solid rgba(232,160,32,0.15);padding:5px 10px;border-radius:100px;transition:all 0.2s" onmouseover="this.style.color='var(--amber)';this.style.borderColor='rgba(232,160,32,0.4)'" onmouseout="this.style.color='rgba(245,237,214,0.4)';this.style.borderColor='rgba(232,160,32,0.15)'" onclick="signInWithGoogle()">G · Sign in</div>
+    <div class="user-chip" onclick="handleUserChipClick()" id="userChip">
+      <span id="userAvatarEl">👤</span><span id="userLabel">Set name</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══ GAME PAGE ══ -->
+<div class="page active" id="page-game">
+  <div class="game-header">
+    <div class="logo">🎬 FILMOJI</div>
+    <div class="tagline">5 films · every day · skip if stumped</div>
+    <div class="daily-badge"><div class="pulse"></div> Daily · <span id="dateLabel"></span></div>
+  </div>
+
+  <div class="stats-strip">
+    <div class="stat-chip">🔥 <span id="streakDisp">0</span> streak</div>
+    <div class="stat-chip">✅ <span id="solvedDisp">0</span> solved</div>
+    <div class="timer-chip" id="timerChip">⏱ <span id="timerDisp">1:00</span></div>
+  </div>
+
+  <div class="film-strip" id="filmStrip"></div>
+
+  <div class="ticket-wrap">
+    <div class="start-overlay" id="startOverlay">
+      <div class="start-label">Ready to play?</div>
+      <button class="start-btn" onclick="startGame()">▶ Start</button>
+      <div class="start-label" id="startDateLabel"></div>
+    </div>
+    <div class="ticket">
+      <div class="ticket-punch-l"></div>
+      <div class="ticket-punch-r"></div>
+      <div class="ticket-top">
+        <div class="ticket-meta">
+          <div class="ticket-label">Now Showing</div>
+          <div class="ticket-num" id="ticketNum">Film 1 of 5</div>
+        </div>
+        <div class="emoji-stage" id="emojiStage">
+          <span style="font-size:42px;opacity:0.2">🎬</span>
+        </div>
+        <div class="hint-meta">
+          <div class="letters-hint">🔤 <span id="letterCountDisp">?</span> letters</div>
+          <button class="hint-btn" id="hintBtn" onclick="useHint()" disabled>💡 Hint 1</button>
+        </div>
+      </div>
+      <div class="ticket-divider"></div>
+      <div class="ticket-bottom">
+        <div class="hint-reveal" id="hintReveal"></div>
+        <div class="hint-reveal hint-reveal-2" id="hintReveal2"></div>
+        <div class="skip-reveal" id="skipReveal">
+          <span style="font-size:24px">⏭️</span>
+          <div>
+            <div class="skip-reveal-label">Skipped — the answer was</div>
+            <div class="skip-reveal-answer" id="skipAnswer"></div>
+          </div>
+        </div>
+        <div class="guess-history" id="guessHistory"></div>
+        <div class="input-wrap" id="inputWrap">
+          <input class="guess-input" id="guessInput"
+            type="text" placeholder="Type your guess…"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            onkeydown="if(event.key==='Enter')submitGuess()" disabled>
+          <div class="input-btns">
+            <button class="skip-btn" id="skipBtn" onclick="skipFilm()" disabled>Skip ⏭</button>
+            <button class="submit-btn" onclick="submitGuess()">→</button>
+          </div>
+        </div>
+        <div class="lives-row">
+          <div class="lives" id="livesRow"></div>
+          <div class="attempts-txt" id="attemptsDisp">3 attempts</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:10px">
+    <div class="score-chip">⭐ Score: <strong id="liveScore">0</strong></div>
+  </div>
+
+  <div class="already-played" id="alreadyPlayed">
+    <h3>✅ Already played today!</h3>
+    <p>Come back tomorrow for 5 new films. Check the leaderboard!</p>
+  </div>
+  <div class="next-countdown" id="nextCountdownGame" style="margin-top:10px"></div>
+</div>
+
+<!-- ══ LEADERBOARD PAGE ══ -->
+<div class="page" id="page-leaderboard">
+  <div class="lb-header">
+    <div class="lb-title">🏆 Leaderboard</div>
+    <div class="lb-subtitle">All-time rankings</div>
+  </div>
+  <div class="my-stats" id="myStats">
+    <h3>★ Your Stats</h3>
+    <div class="my-stats-grid">
+      <div class="my-stat"><span class="my-stat-val" id="myStreak">0</span><span class="my-stat-lbl">🔥 Streak</span></div>
+      <div class="my-stat"><span class="my-stat-val" id="mySolved">0</span><span class="my-stat-lbl">✅ Solved</span></div>
+      <div class="my-stat"><span class="my-stat-val" id="myBestScore">—</span><span class="my-stat-lbl">⭐ Best Score</span></div>
+      <div class="my-stat"><span class="my-stat-val" id="myAvg">—</span><span class="my-stat-lbl">⚡ Avg guesses</span></div>
+    </div>
+  </div>
+  <div class="lb-tabs">
+    <button class="lb-tab active" onclick="switchLbTab('score',this)">⭐ Score</button>
+    <button class="lb-tab" onclick="switchLbTab('streak',this)">🔥 Streak</button>
+    <button class="lb-tab" onclick="switchLbTab('solved',this)">✅ Solved</button>
+  </div>
+  <div class="lb-table" id="lbTable"></div>
+</div>
+
+<!-- Day complete overlay -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-card" onclick="event.stopPropagation()">
+    <button class="result-close-btn" onclick="closeResult()">✕</button>
+    <span class="result-emoji" id="rEmoji">🎬</span>
+    <div class="result-title" id="rTitle">Day Complete!</div>
+    <div class="result-subtitle" id="rSubtitle">TODAY'S FILMS</div>
+    <div class="result-score-display" id="rScore">0</div>
+    <div class="result-score-label">TODAY'S SCORE</div>
+    <div class="film-summary" id="filmSummary"></div>
+    <div class="share-box" id="shareBox"></div>
+    <div class="result-btns">
+      <div class="share-row">
+        <button class="btn-share x-btn" onclick="shareToX()">𝕏 Post</button>
+        <button class="btn-share sms-btn" onclick="shareViaSMS()">💬 Text</button>
+        <button class="btn-share ig-btn" onclick="shareToIG()">📸 Instagram</button>
+        <button class="btn-share copy-btn" onclick="copyShare()">📋 Copy</button>
+      </div>
+      <button class="btn-lb" onclick="goLeaderboard()">🏆 See Leaderboard</button>
+    </div>
+    <div class="tap-hint">tap outside to close</div>
+  </div>
+</div>
+
+<!-- Username modal -->
+<div class="modal-overlay" id="usernameModal">
+  <div class="modal">
+    <h2>🎬 What's your name?</h2>
+    <p>Set a display name to appear on the leaderboard.</p>
+    <input type="text" id="usernameInput" placeholder="e.g. FilmNerd42" maxlength="20"
+      onkeydown="if(event.key==='Enter')saveUsername()">
+    <button class="btn-go" onclick="saveUsername()">Let's Play →</button>
+  </div>
+</div>
+
+<!-- Save Streak Modal -->
+<div class="streak-modal-overlay" id="streakModal">
+  <div class="streak-modal">
+    <span class="streak-fire">🔥</span>
+    <div class="streak-count" id="streakModalCount">5</div>
+    <span class="streak-label">day streak</span>
+    <h2>Don't lose your streak!</h2>
+    <p>Sign in with Google to save your progress — it takes one tap and keeps your streak safe forever.</p>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+      Continue with Google
+    </button>
+    <button class="btn-streak-skip" onclick="closeStreakModal()">Maybe later</button>
+  </div>
+</div>
+
+<!-- Support footer -->
+<footer class="support-footer">
+  <div class="support-inner">
+    <div class="support-label">Made with 🎬 by the Filmoji team</div>
+    <div class="support-title">Help Support Filmoji</div>
+    <div class="support-sub">Filmoji is free to play, forever. If you enjoy it and want to help keep the reels rolling, we'd really appreciate it.</div>
+    <div class="support-btns">
+      <a class="support-btn" onclick="openPayModal('venmo')"><span class="support-btn-icon">💙</span> Venmo</a>
+      <a class="support-btn" onclick="openPayModal('solana')"><span class="support-btn-icon">◎</span> Solana Pay</a>
+      <a class="support-btn" onclick="openPayModal('bitcoin')"><span class="support-btn-icon">₿</span> Bitcoin</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Payment modal -->
+<div class="pay-modal-overlay" id="payModal">
+  <div class="pay-modal">
+    <span class="pay-modal-icon" id="payIcon">💙</span>
+    <h3 id="payTitle">Support via Venmo</h3>
+    <p id="payDesc"></p>
+    <div class="pay-qr" id="payQR"></div>
+    <div class="pay-address-box" id="payAddressBox"></div>
+    <button class="btn-copy-addr" onclick="copyPayAddress()">Copy Address</button><br>
+    <button class="btn-pay-close" onclick="closePayModal()">← Back to the game</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE
+// ══════════════════════════════════════════
+const _sb = supabase.createClient(
+  'https://ahtwvvfrwldbcvxoogsp.supabase.co',
+  'sb_publishable_U9QXLlRSWDwLvKaAC_9-bw_yEttDOgZ'
+);
+
+let _sbUser = null; // current authenticated user, or null
+
+// Init auth on page load — handles OAuth redirect
+async function initAuth() {
+  const { data } = await _sb.auth.getSession();
+  _sbUser = data?.session?.user ?? null;
+  if (_sbUser) {
+    await migrateLocalHistoryToDb();
+  }
+  _sb.auth.onAuthStateChange(async (event, session) => {
+    _sbUser = session?.user ?? null;
+    updateUserChip();
+    if (event === 'SIGNED_IN') {
+      await migrateLocalHistoryToDb();
+      showToast('Welcome! Your streak is saved 🔥');
+    }
+  });
+  updateUserChip();
+}
+
+async function signInWithGoogle() {
+  await _sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+}
+
+async function signOutUser() {
+  await _sb.auth.signOut();
+  _sbUser = null;
+  updateUserChip();
+  showToast('Signed out');
+}
+
+// Save a puzzle result to Supabase (only when signed in)
+async function saveResultToDb(result) {
+  if (!_sbUser) return;
+  const today = getTodayDateStr();
+  await _sb.from('puzzle_results').upsert({
+    user_id:      _sbUser.id,
+    puzzle_date:  today,
+    solved:       result.solved,
+    guesses_used: result.guesses_used,
+    time_seconds: result.time_seconds,
+    hints_used:   result.hints_used,
+  }, { onConflict: 'user_id,puzzle_date' });
+}
+
+// Migrate anonymous local history into DB after sign-in
+async function migrateLocalHistoryToDb() {
+  if (!_sbUser) return;
+  const history = getLocalResultHistory();
+  if (!history.length) return;
+  const rows = history.map(r => ({ user_id: _sbUser.id, ...r }));
+  await _sb.from('puzzle_results').upsert(rows, { onConflict: 'user_id,puzzle_date' });
+}
+
+// Fetch live leaderboard from Supabase
+async function fetchDbLeaderboard(limit = 50) {
+  if (!_sbUser) return null;
+  const { data, error } = await _sb
+    .from('leaderboard')
+    .select('username, avatar_url, total_score, puzzles_solved, current_streak, longest_streak')
+    .limit(limit);
+  if (error) return null;
+  return data;
+}
+
+function getTodayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Local result history for migration
+function getLocalResultHistory() {
+  try { return JSON.parse(localStorage.getItem('fj_db_history') || '[]'); } catch { return []; }
+}
+function saveLocalResultHistory(entry) {
+  const h = getLocalResultHistory();
+  const idx = h.findIndex(r => r.puzzle_date === entry.puzzle_date);
+  if (idx >= 0) h[idx] = entry; else h.push(entry);
+  localStorage.setItem('fj_db_history', JSON.stringify(h));
+}
+
+// Show save-streak prompt when anon streak hits threshold
+function maybeShowStreakPrompt() {
+  if (_sbUser) return; // already signed in
+  const localStreak = parseInt(localStorage.getItem('fj_streak') || '0');
+  if (localStreak >= 5) {
+    document.getElementById('streakModalCount').textContent = localStreak;
+    document.getElementById('streakModal').classList.add('show');
+  }
+}
+
+function closeStreakModal() {
+  document.getElementById('streakModal').classList.remove('show');
+}
+
+function handleUserChipClick() {
+  if (_sbUser) {
+    if (confirm('Sign out?')) signOutUser();
+  } else {
+    document.getElementById('streakModalCount').textContent = parseInt(localStorage.getItem('fj_streak') || '0') || '—';
+    document.getElementById('streakModal').classList.add('show');
+  }
+}
+
+// ══════════════════════════════════════════
+// PUZZLE BANK
+// ══════════════════════════════════════════
+const ALL_PUZZLES = [
+  // ── Classics ──
+  {emojis:['👨‍👩‍👧','🔫','🌴','💰'],answer:'The Godfather',hint:'An offer you can\'t refuse',hint2:'1972 Coppola film, Brando as a mafia patriarch'},
+  {emojis:['🧠','🏃','🌀','🔑'],answer:'Inception',hint:'We need to go deeper',hint2:'DiCaprio plants ideas in dreams, 2010'},
+  {emojis:['🧑‍🚀','🪐','⭐','🤖'],answer:'Interstellar',hint:'Love transcends dimensions',hint2:'Matthew McConaughey travels through a wormhole to save Earth'},
+  {emojis:['🎹','🎶','💔','🕯️'],answer:'La La Land',hint:'Mia and Sebastian, 2016',hint2:'Emma Stone and Ryan Gosling in a jazz-soaked Hollywood romance'},
+  {emojis:['🧟','🧒','🍄','🌲'],answer:'The Last of Us',hint:'Fungal apocalypse road trip',hint2:'Joel escorts Ellie across a post-pandemic America'},
+  {emojis:['🤖','🌆','🕶️'],answer:'The Terminator',hint:"I'll be back",hint2:'Schwarzenegger as a cyborg sent back to 1984 to kill Sarah Connor'},
+  {emojis:['🧸','👦','🚀','⭐'],answer:'Toy Story',hint:'To infinity and beyond!',hint2:"Woody and Buzz, Pixar's first feature"},
+  {emojis:['🌪️','👠','🐕','🏠'],answer:'The Wizard of Oz',hint:'No place like home',hint2:'Dorothy follows the yellow brick road with a scarecrow, tin man, and lion'},
+  {emojis:['🐟','🌊','🔍'],answer:'Finding Nemo',hint:'Just keep swimming',hint2:'A clownfish crosses the ocean to rescue his son from a fish tank'},
+  {emojis:['🌌','⚔️','👨‍👧'],answer:'Star Wars',hint:'A long time ago in a galaxy far away…',hint2:'Luke Skywalker, the Force, and Darth Vader',seriesAliases:['star wars','a new hope'],seriesName:'Star Wars series'},
+  {emojis:['🌀','💊','🔴'],answer:'The Matrix',hint:'Red pill or blue pill?',hint2:'Neo discovers humanity lives in a simulated reality',seriesAliases:['the matrix','matrix'],seriesName:'Matrix series'},
+  {emojis:['🦖','🏝️','😱'],answer:'Jurassic Park',hint:'Life finds a way',hint2:'Dinosaurs run amok on a theme park island, 1993 Spielberg',seriesAliases:['jurassic park','jurassic world'],seriesName:'Jurassic franchise'},
+  {emojis:['🔪','🚿','🏨'],answer:'Psycho',hint:'Norman Bates awaits',hint2:'Hitchcock 1960 — shower scene, Bates Motel'},
+  {emojis:['🧒','🏠','🎄','😈'],answer:'Home Alone',hint:'Kevin vs the wet bandits',hint2:'Eight-year-old defends his house with booby traps at Christmas'},
+  {emojis:['🎠','🤥','🦗'],answer:'Pinocchio',hint:'When you wish upon a star',hint2:"A wooden puppet wants to be a real boy, Disney's 1940 classic"},
+  {emojis:['🦸','🦹','💥','🌆'],answer:'The Dark Knight',hint:'Why so serious?',hint2:"Heath Ledger as the Joker in Nolan's Batman sequel",seriesAliases:['batman','dark knight'],seriesName:'Batman series'},
+  {emojis:['👽','🚲','🌙','☎️'],answer:'E.T.',hint:'Phone home',hint2:'Spielberg 1982 — a boy befriends a stranded alien'},
+  {emojis:['🐭','🍝','👨‍🍳'],answer:'Ratatouille',hint:'Anyone can cook',hint2:'A rat named Remy secretly controls a chef in Paris'},
+  {emojis:['🧊','❄️','👸','⛄'],answer:'Frozen',hint:'Let it go!',hint2:'Elsa and Anna, sisters and an enchanted kingdom of ice'},
+  {emojis:['👊','🥊','🏆'],answer:'Rocky',hint:'Yo Adrian!',hint2:'A Philadelphia boxer gets a shot at the heavyweight title, 1976',seriesAliases:['rocky'],seriesName:'Rocky series'},
+  {emojis:['🪆','🏃','🌲','🍫'],answer:'Forrest Gump',hint:'Life is like a box of chocolates',hint2:'Tom Hanks runs across America, 1994 Best Picture'},
+  {emojis:['🚁','🌴','💣','🎶'],answer:'Apocalypse Now',hint:'I love the smell of napalm in the morning',hint2:'Coppola 1979 — a soldier journeys upriver into Vietnam to find Kurtz'},
+  {emojis:['🦊','🐓','🎩'],answer:'Fantastic Mr. Fox',hint:"Wes Anderson's stop-motion masterpiece",hint2:'A fox outsmarts three farmers to feed his family'},
+  {emojis:['🏜️','🤠','💰','🔫'],answer:'No Country for Old Men',hint:'Cattle gun villain',hint2:'Javier Bardem as Anton Chigurh hunts a man who found drug money'},
+  {emojis:['🎻','⛴️','🌊','🇮🇹'],answer:'Cinema Paradiso',hint:'A love letter to movies',hint2:"An Italian boy's friendship with a cinema projectionist"},
+  {emojis:['🐝','🍯','🌸'],answer:'Bee Movie',hint:'According to all known laws of aviation…',hint2:'Barry the bee sues the human race for stealing honey'},
+  {emojis:['🕰️','👻','😱','🏠'],answer:'The Others',hint:'We are the others',hint2:'Nicole Kidman in a gothic manor believing it to be haunted'},
+  {emojis:['🐺','👶','🌲'],answer:'The Jungle Book',hint:'Mowgli raised by wolves',hint2:'A boy raised by animals faces the tiger Shere Khan'},
+  {emojis:['🃏','🎭','🃏'],answer:'Joker',hint:'Put on a happy face',hint2:'Joaquin Phoenix as Arthur Fleck becoming the Clown Prince of Gotham',seriesAliases:['joker','the joker'],seriesName:'Joker/Batman universe'},
+  {emojis:['🐧','🌊','❄️'],answer:'Happy Feet',hint:'Tap dancing penguin',hint2:'A penguin who can\'t sing but dances to find his place in Antarctica'},
+  {emojis:['🌹','👹','🏰'],answer:'Beauty and the Beast',hint:'Tale as old as time',hint2:'Belle is held captive in an enchanted castle and falls for the Beast'},
+  {emojis:['🚂','🎁','🎅','🔔'],answer:'The Polar Express',hint:'All aboard on Christmas Eve',hint2:'Tom Hanks voices a conductor on a magical train to the North Pole'},
+  {emojis:['🧟','🔫','🧠','🛒'],answer:'Dawn of the Dead',hint:'Shopping mall zombies',hint2:'Survivors hole up in a mall during a zombie apocalypse, 1978 Romero'},
+  {emojis:['🏎️','💨','🏆'],answer:'Ford v Ferrari',hint:'Le Mans 1966',hint2:'Matt Damon and Christian Bale build a car to beat Ferrari at Le Mans'},
+  {emojis:['🌺','💊','🌴','🏖️'],answer:'Scarface',hint:'Say hello to my little friend',hint2:'Al Pacino as Tony Montana rises through Miami drug empire',seriesAliases:['scarface'],seriesName:'Scarface'},
+  {emojis:['👁️','🌀','🏠'],answer:'Get Out',hint:'No, no, no, no...',hint2:'Jordan Peele — a Black man visits his white girlfriend\'s family with disturbing results'},
+  {emojis:['🌊','🏄','💰','👮'],answer:'Point Break',hint:'Bodhi and Utah, 1991',hint2:'An FBI agent goes undercover with a gang of surfer bank robbers'},
+  {emojis:['👊','🥊','🏙️','🦇'],answer:'Batman Begins',hint:"The beginning of Nolan's trilogy",hint2:'Bruce Wayne trains with the League of Shadows before returning to Gotham',seriesAliases:['batman begins','batman','bruce wayne'],seriesName:'Batman series'},
+  {emojis:['🐻','🌲','🏹'],answer:'The Revenant',hint:'Hugh Glass vs the wilderness',hint2:'DiCaprio wins his Oscar crawling through the frozen frontier for revenge'},
+  {emojis:['💼','🔫','🍸','🎰'],answer:'Casino Royale',hint:'Bond. James Bond.',hint2:'Daniel Craig\'s first outing as 007, poker in Montenegro',seriesAliases:['james bond','007','bond'],seriesName:'James Bond series'},
+  {emojis:['💣','🚌','⚡','👩'],answer:'Speed',hint:"Bus can't slow down",hint2:'Keanu Reeves must keep a city bus above 50mph or it explodes'},
+  {emojis:['🕵️','🌃','🔦','🔪'],answer:'Blade Runner',hint:'Do androids dream of electric sheep?',hint2:'Harrison Ford hunts rogue replicants in a rainy dystopian LA',seriesAliases:['blade runner'],seriesName:'Blade Runner series'},
+  {emojis:['🚢','⚓','💥','🌊'],answer:'The Hunt for Red October',hint:'Russian submarine defection',hint2:'Sean Connery as a Soviet captain trying to defect with a nuclear sub'},
+  {emojis:['🧨','💰','🎲','🃏'],answer:"Ocean's Eleven",hint:'Robbing three Vegas casinos at once',hint2:'Clooney, Pitt, Damon — a slick heist of the Bellagio',seriesAliases:["ocean's","oceans eleven","oceans 11"],seriesName:"Ocean's series"},
+  {emojis:['🌍','🔫','💀','🤵'],answer:'Die Hard',hint:'Yippee-ki-yay',hint2:'Bruce Willis as cop John McClane trapped in a skyscraper with terrorists',seriesAliases:['die hard'],seriesName:'Die Hard series'},
+  {emojis:['🐉','🥋','🏮'],answer:'Enter the Dragon',hint:"Bruce Lee's masterpiece",hint2:'Bruce Lee infiltrates a martial arts tournament on a drug lord\'s island'},
+  {emojis:['🌑','🚀','👨‍🚀','🇺🇸'],answer:'First Man',hint:"Neil Armstrong's journey to the moon",hint2:'Ryan Gosling as Neil Armstrong — the human cost of the Apollo program'},
+  {emojis:['🧲','💰','🏦','🎭'],answer:'Heat',hint:'Pacino vs De Niro, LA bank heist',hint2:'Robert De Niro and Al Pacino face off as thief and detective'},
+  {emojis:['🚗','💨','👮','🌉'],answer:'Bullitt',hint:'Greatest car chase ever filmed',hint2:'Steve McQueen in a Ford Mustang through San Francisco streets, 1968'},
+  {emojis:['🦾','😎','🕶️','🌆'],answer:'RoboCop',hint:"Dead or alive, you're coming with me",hint2:'A murdered cop is resurrected as a cyborg law enforcer in Detroit'},
+  {emojis:['🐍','✈️','😤'],answer:'Snakes on a Plane',hint:"Samuel L. Jackson is done with these snakes",hint2:'Exactly what it says on the tin'},
+  {emojis:['🧤','🥊','🩸','🏋️'],answer:'Creed',hint:'Son of Apollo, trained by Rocky',hint2:'Adonis Creed trains with Rocky Balboa to fight for his father\'s legacy',seriesAliases:['creed','rocky','apollo creed'],seriesName:'Creed/Rocky series'},
+  {emojis:['🔫','🌆','👮','🚔'],answer:'Training Day',hint:"Denzel Washington's corrupt cop",hint2:'Ethan Hawke rides with a corrupt LAPD narcotics detective for one day'},
+  {emojis:['🚗','🌉','🎭','💰'],answer:'Drive',hint:'Ryan Gosling the silent wheelman',hint2:'A Hollywood stuntman moonlights as a getaway driver in LA'},
+  {emojis:['🧑‍💻','💳','✈️','🌍'],answer:'Catch Me If You Can',hint:'Frank Abagnale cons the world',hint2:'DiCaprio as a teenage con man chased by Tom Hanks\'s FBI agent'},
+  {emojis:['🏦','💣','🎭','🕐'],answer:'Dog Day Afternoon',hint:'Al Pacino robs a bank for surgery',hint2:'Based on a true 1972 Brooklyn bank robbery that turned into a hostage standoff'},
+  {emojis:['🌍','💥','🚀','🇺🇸'],answer:'Independence Day',hint:'Welcome to Earth',hint2:'Will Smith punches an alien in this 1996 alien invasion blockbuster'},
+  {emojis:['⚖️','🏛️','😤','🔨'],answer:'12 Angry Men',hint:'One juror stands alone'},
+  {emojis:['🎓','📚','🍎','🧑'],answer:'Good Will Hunting',hint:"It's not your fault"},
+  {emojis:['🎸','🎤','🌟','🚌'],answer:'Almost Famous',hint:'Teenage reporter tours with a rock band'},
+  {emojis:['👩','🖥️','🚀','➗'],answer:'Hidden Figures',hint:'Black women mathematicians at NASA'},
+  {emojis:['🎻','🎼','☠️','🌹'],answer:'Amadeus',hint:'Mozart vs Salieri'},
+  {emojis:['🧑‍🏫','📐','✏️','🏫'],answer:'Dead Poets Society',hint:'O Captain, my Captain'},
+  {emojis:['✉️','📬','🏝️','⚽'],answer:'Cast Away',hint:'Wilson!'},
+  {emojis:['🎤','👑','🎸','🏟️'],answer:'Bohemian Rhapsody',hint:"Freddie Mercury's story"},
+  {emojis:['🏥','👨‍⚕️','💉','❤️'],answer:'Patch Adams',hint:'Laughter is the best medicine'},
+  {emojis:['🏈','🧠','💥','👨‍⚕️'],answer:'Concussion',hint:'Will Smith uncovers NFL brain trauma'},
+  {emojis:['🌅','🎣','🦁','🌍'],answer:'Out of Africa',hint:'I had a farm in Africa'},
+  {emojis:['🎠','🎪','🤹','😢'],answer:'The Greatest Showman',hint:"P.T. Barnum's circus"},
+  {emojis:['👗','💄','🐶','✨'],answer:'Legally Blonde',hint:'Elle Woods goes to Harvard Law'},
+  {emojis:['🧑','🪟','😂','🗣️'],answer:'The Truman Show',hint:'His whole life is a TV show'},
+  {emojis:['🚗','🛣️','👬','😂'],answer:'Dumb and Dumber',hint:"Lloyd and Harry's road trip"},
+  {emojis:['🔪','🎭','😱','🌽'],answer:'Halloween',hint:'Michael Myers in a mask'},
+  {emojis:['🩸','🛗','🪓','🏨'],answer:'The Shining',hint:"Here's Johnny!"},
+  {emojis:['👶','😈','🌹','🏙️'],answer:"Rosemary's Baby",hint:'Something is wrong with her pregnancy'},
+  {emojis:['🎈','🤡','🕳️','👁️'],answer:'It',hint:'We all float down here'},
+  {emojis:['🐦','😱','🏘️','☁️'],answer:'The Birds',hint:"Hitchcock's feathered terror"},
+  {emojis:['🧟','🌍','👁️','🛡️'],answer:'World War Z',hint:'Brad Pitt vs the zombie apocalypse'},
+  {emojis:['🌲','📹','😱','🧭'],answer:'The Blair Witch Project',hint:'Found footage in the woods'},
+  {emojis:['🐑','🤫','🕵️','😰'],answer:'The Silence of the Lambs',hint:'Clarice meets Hannibal Lecter'},
+  {emojis:['👁️','🌻','🇸🇪','☀️'],answer:'Midsommar',hint:'Swedish folk horror in daylight'},
+  {emojis:['🧠','💀','🚪','😱'],answer:'Hereditary',hint:'Family grief turns demonic'},
+  {emojis:['🏊','🦈','🌊','🩸'],answer:'Deep Blue Sea',hint:'Genetically enhanced sharks'},
+  {emojis:['🪆','👧','🎭','🔪'],answer:'M3GAN',hint:'AI doll goes rogue'},
+  {emojis:['🌍','🔭','👽','📡'],answer:'Contact',hint:'Jodie Foster makes first contact'},
+  {emojis:['👾','🕹️','🏆','🎮'],answer:'Ready Player One',hint:'Virtual reality treasure hunt'},
+  {emojis:['🌌','🌀','⏰','👴'],answer:'Arrival',hint:'Alien language rewires human perception'},
+  {emojis:['🤖','🌹','🔫','🌆'],answer:'Ex Machina',hint:'Turing test with a beautiful android'},
+  {emojis:['🚀','🪐','🥔','🌿'],answer:'The Martian',hint:'Stranded astronaut grows potatoes on Mars'},
+  {emojis:['👦','🌌','🐉','💙'],answer:'Avatar',hint:"Pandora's blue aliens"},
+  {emojis:['⏪','🕰️','🚗','⚡'],answer:'Back to the Future',hint:'1.21 gigawatts!'},
+  {emojis:['🌙','👩‍🚀','🔭','🌌'],answer:'Gravity',hint:'Sandra Bullock adrift in space'},
+  {emojis:['🤖','👦','🏭','🌍'],answer:'WALL-E',hint:'Last robot on a garbage Earth'},
+  {emojis:['🧑','🪞','🌀','👥'],answer:'Everything Everywhere All at Once',hint:'Multiverse laundromat'},
+  {emojis:['🤖','❤️','🌆','🌧️'],answer:'A.I. Artificial Intelligence',hint:'A robot boy who wants to be real'},
+  {emojis:['🌍','🧬','🦠','💉'],answer:'Contagion',hint:'Global pandemic thriller'},
+  {emojis:['👰','😅','✈️','🌴'],answer:'Bridesmaids',hint:'Bachelorette party gone wrong'},
+  {emojis:['🎓','🏫','😜','🍺'],answer:'Animal House',hint:'Bluto and the Deltas'},
+  {emojis:['📺','🎤','🕺','🌟'],answer:'Anchorman',hint:'Ron Burgundy stays classy'},
+  {emojis:['👮','🚓','💥','😂'],answer:'21 Jump Street',hint:'Cops go back to high school'},
+  {emojis:['🎅','🎁','🧝','🤣'],answer:'Elf',hint:'Buddy the elf discovers New York'},
+  {emojis:['🎤','🏆','🎶','😤'],answer:'School of Rock',hint:'Jack Black teaches kids to rock'},
+  {emojis:['🤵','👰','😂','🌍'],answer:'The Hangover',hint:'What happened in Vegas'},
+  {emojis:['🏌️','⛳','😤','🐿️'],answer:'Caddyshack',hint:'Judge Smails does not approve'},
+  {emojis:['🍍','🔍','👟','🌺'],answer:'Pineapple Express',hint:'Stoner action comedy'},
+  {emojis:['🦷','😁','🏖️','💅'],answer:"There's Something About Mary",hint:'Ben Stiller and hair gel'},
+  {emojis:['🧑‍🍳','🍷','🇫🇷','📺'],answer:'Julie & Julia',hint:'Julia Child and a blogger'},
+  {emojis:['🦁','👑','🌍'],answer:'The Lion King',hint:'Animated Disney classic (1994)'},
+  {emojis:['🐠','🌊','🐚','🏄'],answer:'Moana',hint:'Polynesian princess crosses the ocean'},
+  {emojis:['🐉','🥟','🏯','⚔️'],answer:'Mulan',hint:"She fights for her family's honor"},
+  {emojis:['👸','🍎','😴','🤴'],answer:'Snow White',hint:'Mirror, mirror on the wall'},
+  {emojis:['🐔','🌾','🪓','😱'],answer:'Chicken Run',hint:'Claymation hens plan a great escape'},
+  {emojis:['🦸','👨‍👩‍👧‍👦','🦹','🌆'],answer:'The Incredibles',hint:'Superhero family comes out of retirement'},
+  {emojis:['👴','🏠','🎈','🌈'],answer:'Up',hint:'A house lifted by a million balloons'},
+  {emojis:['🧟','💚','🐴','🏰'],answer:'Shrek',hint:"Far Far Away's favourite ogre"},
+  {emojis:['🌕','🐇','🍄','🃏'],answer:'Alice in Wonderland',hint:'Down the rabbit hole'},
+  {emojis:['🎪','🐘','🌟','🤡'],answer:'Dumbo',hint:'The flying elephant'},
+  {emojis:['🦌','🌲','🔫','💔'],answer:'Bambi',hint:"His mother doesn't make it"},
+  {emojis:['🧜','🐚','🎶','🌊'],answer:'The Little Mermaid',hint:'Part of your world'},
+  {emojis:['🐕','🏙️','🎭','⭐'],answer:'Bolt',hint:'TV dog thinks his powers are real'},
+  {emojis:['🐉','🧒','🌊','🎏'],answer:'Spirited Away',hint:'A girl trapped in the spirit world'},
+  {emojis:['🦊','🐰','🏙️','🔍'],answer:'Zootopia',hint:'Unlikely partners crack the city\'s biggest case'},
+  {emojis:['🌺','🏝️','🐾','🤝'],answer:'Lilo & Stitch',hint:'Ohana means family'},
+  {emojis:['🐠','🔵','🌊','🐙'],answer:'Finding Dory',hint:'Just keep swimming... where was I?'},
+  {emojis:['🚢','🧊','💑','🌊'],answer:'Titanic',hint:'Jack and Rose, a doomed voyage'},
+  {emojis:['💌','📬','💻','❄️'],answer:"You've Got Mail",hint:'Tom Hanks and Meg Ryan email romance'},
+  {emojis:['🌧️','💋','🚂','📖'],answer:'The Notebook',hint:'Ryan Gosling builds a house for love'},
+  {emojis:['🎭','🌹','💃','🇫🇷'],answer:'Moulin Rouge',hint:'Come what may'},
+  {emojis:['👩','🧑','🏙️','🎆'],answer:'When Harry Met Sally',hint:"I'll have what she's having"},
+  {emojis:['💃','🕺','🏖️','🎵'],answer:'Dirty Dancing',hint:'Nobody puts Baby in a corner'},
+  {emojis:['🦢','🩰','🎭','🖤'],answer:'Black Swan',hint:"Natalie Portman's dark ballet obsession"},
+  {emojis:['🍫','💌','📷','❤️'],answer:'P.S. I Love You',hint:'Letters from beyond the grave'},
+  {emojis:['🌸','🎎','🗻','❤️'],answer:'Memoirs of a Geisha',hint:"Japan's most celebrated geisha"},
+  {emojis:['🃏','💰','🎰','🏙️'],answer:'The Usual Suspects',hint:'Who is Keyser Söze?',hint2:'Five criminals meet in a lineup — one is not who he seems, 1995'},
+  {emojis:['🔍','🧩','🏛️','💀'],answer:'The Da Vinci Code',hint:'Hidden codes in Renaissance art',hint2:'Tom Hanks as Robert Langdon deciphers a secret hidden in the Louvre',seriesAliases:['da vinci code','robert langdon'],seriesName:'Robert Langdon series'},
+  {emojis:['🍊','🔫','📦','🤵'],answer:'Pulp Fiction',hint:'Royale with cheese',hint2:'Tarantino 1994 — three interweaving crime stories in LA'},
+  {emojis:['🕵️','🌃','🎷','🔎'],answer:'Chinatown',hint:"Forget it Jake, it's Chinatown",hint2:'Jack Nicholson as a 1930s LA private eye uncovering a water conspiracy'},
+  {emojis:['🚬','💰','🎩','🔫'],answer:'Goodfellas',hint:'As far back as I can remember I always wanted to be a gangster',hint2:'Scorsese 1990 — Ray Liotta\'s rise and fall in the mob'},
+  {emojis:['🎯','🔍','🏡','🧑‍🍳'],answer:'Knives Out',hint:'Whodunnit at a mansion',hint2:'Daniel Craig as detective Benoit Blanc investigates a crime novelist\'s death',seriesAliases:['knives out'],seriesName:'Knives Out series'},
+  {emojis:['🚂','❄️','🔍','💀'],answer:'Murder on the Orient Express',hint:'Hercule Poirot solves a train murder',hint2:'Agatha Christie adaptation — every passenger is a suspect',seriesAliases:['hercule poirot','poirot','orient express'],seriesName:'Hercule Poirot series'},
+  {emojis:['🩸','💵','🌾','🤠'],answer:'Fargo',hint:'Minnesota. Wood chipper. Yah.',hint2:'Coen Brothers 1996 — a kidnapping scheme goes spectacularly wrong',seriesAliases:['fargo'],seriesName:'Fargo'},
+  {emojis:['👔','💰','🏙️','📈'],answer:'The Wolf of Wall Street',hint:"Jordan Belfort's rise and fall",hint2:'DiCaprio and Jonah Hill in Scorsese\'s 3-hour excess-of-the-80s epic'},
+  {emojis:['🎪','🤡','💀','🔍'],answer:'Zodiac',hint:'The unsolved San Francisco serial killer',hint2:'David Fincher — journalists obsess over the Zodiac killer\'s ciphers'},
+  {emojis:['🧭','🗺️','💀','🏺'],answer:'Raiders of the Lost Ark',hint:'Indy hates snakes',hint2:'Indiana Jones races the Nazis to find the Ark of the Covenant',seriesAliases:['indiana jones','indy'],seriesName:'Indiana Jones series'},
+  {emojis:['🧝','🌲','💍','🗡️'],answer:'The Hobbit',hint:'There and back again',hint2:'Bilbo Baggins joins thirteen dwarves to reclaim their mountain home from a dragon',seriesAliases:['hobbit','the hobbit'],seriesName:'The Hobbit series'},
+  {emojis:['🦁','🪄','❄️','🚪'],answer:'The Chronicles of Narnia',hint:'Through the wardrobe',hint2:'Four siblings discover a magical world through a wardrobe',seriesAliases:['narnia','chronicles of narnia'],seriesName:'Narnia series'},
+  {emojis:['🌊','🏴‍☠️','💀','⚓'],answer:'Pirates of the Caribbean',hint:'Why is the rum always gone?',hint2:'Jack Sparrow faces the Black Pearl and the curse of Aztec gold',seriesAliases:['pirates of the caribbean','jack sparrow'],seriesName:'Pirates of the Caribbean series'},
+  {emojis:['⚡','🧙','🏰','🦉'],answer:'Harry Potter',hint:"You're a wizard Harry",hint2:'A boy discovers he\'s a famous wizard and attends Hogwarts School',seriesAliases:['harry potter','hogwarts','hermione','ron weasley'],seriesName:'Harry Potter series'},
+  {emojis:['🐯','🌊','🚣','🙏'],answer:'Life of Pi',hint:'Stranded on a raft with a Bengal tiger',hint2:'A young Indian boy survives 227 days at sea with a tiger named Richard Parker'},
+  {emojis:['🪄','🎩','🐇','⭐'],answer:'The Prestige',hint:'Two rival magicians obsessed with the ultimate trick',hint2:'Bale and Jackman as dueling Victorian magicians — every trick has three stages'},
+  {emojis:['👑','⚔️','🛡️','🏰'],answer:'Gladiator',hint:'Are you not entertained?',hint2:'Russell Crowe as a Roman general enslaved and forced to fight in the Colosseum'},
+  {emojis:['🧙','💍','🌋'],answer:'The Lord of the Rings',hint:'One ring to rule them all',hint2:'Frodo Baggins must destroy the One Ring in Mount Doom',seriesAliases:['lord of the rings','lotr','fellowship','two towers','return of the king'],seriesName:'Lord of the Rings series'},
+  {emojis:['🕷️','🕸️','🏙️'],answer:'Spider-Man',hint:'Your friendly neighbourhood hero',hint2:'Peter Parker gets bitten by a radioactive spider and becomes a superhero',seriesAliases:['spider-man','spiderman','peter parker'],seriesName:'Spider-Man series'},
+  {emojis:['🦈','🏖️','😱'],answer:'Jaws',hint:"Spielberg's beach nightmare",hint2:'A great white shark terrorizes a New England beach town, 1975'},
+  {emojis:['🗡️','🛡️','🌊','⚔️'],answer:'The Princess Bride',hint:'As you wish',hint2:'Westley rescues his true love Buttercup from the evil Prince Humperdinck'},
+  {emojis:['🐕','🐈','🌿','🚐'],answer:'Homeward Bound',hint:'Two dogs and a cat find their way home',hint2:'Shadow, Chance, and Sassy cross the wilderness back to their family'},
+  {emojis:['🏴‍☠️','🗺️','💎','🌴'],answer:'Treasure Island',hint:'X marks the spot',hint2:'Young Jim Hawkins sails with Long John Silver to find buried pirate gold'},
+  {emojis:['🧝','🏹','🌲','👑'],answer:'Brave',hint:"Scottish princess fights her own fate",hint2:'Merida defies a royal tradition and must undo a spell that turns her mother into a bear'},
+];
+
+const FILMS_PER_DAY = 5;
+const MAX_ATTEMPTS  = 3;
+
+function calcFilmScore(won, attempts) {
+  if (!won) return 0;
+  return attempts === 1 ? 200 : attempts === 2 ? 100 : 50;
+}
+
+// ══ State ══
+let username     = localStorage.getItem('fj_username') || '';
+let streak       = parseInt(localStorage.getItem('fj_streak')       || '0');
+let solved       = parseInt(localStorage.getItem('fj_solved')       || '0');
+let totalSkips   = parseInt(localStorage.getItem('fj_skips')        || '0');
+let totalGuesses = parseInt(localStorage.getItem('fj_total_guesses')|| '0');
+let gamesForAvg  = parseInt(localStorage.getItem('fj_games_avg')    || '0');
+let bestScore    = parseInt(localStorage.getItem('fj_best_score')   || '0');
+let currentLbTab = 'score';
+
+let filmQueue    = [];
+let filmIdx      = 0;
+let filmResults  = [];
+let attempts     = 0;
+let guesses      = [];
+let hintUsed     = 0; // 0=none, 1=hint1 used, 2=hint2 used
+let gameOver     = false;
+let shareText    = '';
+let gameStarted  = false;
+let liveScore    = 0;
+
+function getDayIndex() {
+  return Math.floor((new Date() - new Date('2024-01-01')) / 86400000);
+}
+function getTodayKey() {
+  const d = new Date();
+  return `fj_day_${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
+}
+function seededRng(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function seededShuffle(arr, seed) {
+  const a = [...arr];
+  const rng = seededRng(seed);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const TODAY_OVERRIDES = {
+  '2026_2_5': ['Gladiator','Pulp Fiction','Zootopia','Pineapple Express','Caddyshack']
+};
+
+function getTodayQueue() {
+  const d = new Date();
+  const key = `${d.getFullYear()}_${d.getMonth()}_${d.getDate()}`;
+  if (TODAY_OVERRIDES[key]) {
+    return TODAY_OVERRIDES[key].map(title =>
+      ALL_PUZZLES.findIndex(p => p.answer === title)
+    ).filter(i => i !== -1);
+  }
+  const day = getDayIndex();
+  const indices = ALL_PUZZLES.map((_, i) => i);
+  const shuffled = seededShuffle(indices, day * 9301 + 49297);
+  return shuffled.slice(0, FILMS_PER_DAY);
+}
+function currentPuzzle() { return ALL_PUZZLES[filmQueue[filmIdx]]; }
+
+function init() {
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('dateLabel').textContent = dateStr;
+  document.getElementById('startDateLabel').textContent = dateStr;
+
+  updateStatsDisplay();
+  updateUserChip();
+  filmQueue = getTodayQueue();
+
+  const saved = localStorage.getItem(getTodayKey());
+  if (saved) {
+    showAlreadyPlayed(JSON.parse(saved));
+  } else {
+    filmIdx = 0; filmResults = []; liveScore = 0;
+    renderFilmStrip();
+    renderPuzzlePreview();
+    document.getElementById('startOverlay').classList.remove('hidden');
+    renderLives();
+    if (!username)
+      setTimeout(() => document.getElementById('usernameModal').classList.add('show'), 400);
+  }
+
+  renderLeaderboard();
+  startNextPuzzleCountdown();
+}
+
+function startGame() {
+  document.getElementById('startOverlay').classList.add('hidden');
+  gameStarted = true;
+  const startTime = Date.now();
+  localStorage.setItem('fj_start_time', startTime);
+  startTimer(startTime);
+  renderPuzzle();
+  if (!username)
+    setTimeout(() => document.getElementById('usernameModal').classList.add('show'), 300);
+}
+
+function renderFilmStrip() {
+  const strip = document.getElementById('filmStrip');
+  strip.innerHTML = '';
+  for (let i = 0; i < FILMS_PER_DAY; i++) {
+    const pip = document.createElement('div');
+    let cls = 'film-pip';
+    if (i < filmResults.length) {
+      const r = filmResults[i];
+      cls += r.skipped ? ' skipped' : r.won ? ' solved' : ' failed';
+    } else if (i === filmIdx && gameStarted) {
+      cls += ' active';
+    }
+    pip.className = cls;
+    if (i < filmResults.length) {
+      const r = filmResults[i];
+      pip.textContent = r.skipped ? '⏭' : r.won ? '✓' : '✗';
+    } else {
+      pip.textContent = String(i + 1);
+    }
+    strip.appendChild(pip);
+  }
+  document.getElementById('ticketNum').textContent = `Film ${filmIdx + 1} of ${FILMS_PER_DAY}`;
+}
+
+function renderPuzzlePreview() {
+  const p = currentPuzzle();
+  const stage = document.getElementById('emojiStage');
+  stage.innerHTML = '';
+  p.emojis.forEach((em, i) => {
+    const s = document.createElement('span');
+    s.className = 'emoji-orb';
+    s.textContent = em;
+    s.style.animationDelay = (i * 0.12) + 's';
+    s.style.opacity = '0.3';
+    stage.appendChild(s);
+  });
+}
+
+function renderPuzzle() {
+  const p = currentPuzzle();
+  attempts = 0; guesses = []; hintUsed = 0; gameOver = false;
+
+  const stage = document.getElementById('emojiStage');
+  stage.innerHTML = '';
+  p.emojis.forEach((em, i) => {
+    const s = document.createElement('span');
+    s.className = 'emoji-orb';
+    s.textContent = em;
+    s.style.animationDelay = (i * 0.12) + 's';
+    stage.appendChild(s);
+  });
+
+  document.getElementById('letterCountDisp').textContent = p.answer.length;
+  document.getElementById('guessInput').placeholder = 'Type your guess…';
+  document.getElementById('guessInput').disabled = false;
+  document.getElementById('hintReveal').classList.remove('show');
+  document.getElementById('hintReveal2').classList.remove('show');
+  document.getElementById('skipReveal').classList.remove('show');
+  document.getElementById('hintBtn').disabled = false;
+  document.getElementById('hintBtn').textContent = '💡 Hint 1';
+  document.getElementById('skipBtn').disabled = false;
+  document.getElementById('guessHistory').innerHTML = '';
+  document.getElementById('guessInput').value = '';
+
+  renderLives();
+  renderFilmStrip();
+  setTimeout(() => document.getElementById('guessInput').focus(), 200);
+}
+
+function renderLives() {
+  const row = document.getElementById('livesRow');
+  row.innerHTML = '';
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const d = document.createElement('div');
+    d.className = 'life' + (i >= (MAX_ATTEMPTS - attempts) ? ' lost' : '');
+    d.textContent = '🎟️';
+    row.appendChild(d);
+  }
+  const left = MAX_ATTEMPTS - attempts;
+  document.getElementById('attemptsDisp').textContent =
+    `${left} attempt${left !== 1 ? 's' : ''} left`;
+}
+
+function submitGuess() {
+  if (gameOver || !gameStarted) return;
+  const input = document.getElementById('guessInput');
+  const val = input.value.trim();
+  if (!val) return;
+
+  const p = currentPuzzle();
+  const correct = norm(val) === norm(p.answer);
+  const almost  = !correct && norm(p.answer).includes(norm(val)) && val.length > 2;
+
+  // Check if player guessed a series/franchise name instead of the specific film
+  const seriesMatch = !correct && checkSeriesAlias(val, p);
+  if (seriesMatch) {
+    showToast(`That's the ${seriesMatch}! We need the specific film title.`);
+    const wrap = document.getElementById('inputWrap');
+    wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake');
+    document.getElementById('guessInput').value = '';
+    return; // don't count as an attempt
+  }
+
+  attempts++;
+  guesses.push({ text: val, correct, almost });
+  input.value = '';
+  addGuessRow(val, correct, almost);
+  renderLives();
+
+  if (correct) {
+    gameOver = true;
+    const pts = calcFilmScore(true, attempts);
+    liveScore += pts;
+    updateLiveScore();
+    recordFilmResult(true, false);
+    if (pts > 0) showToast(`+${pts} pts! 🎉`);
+    setTimeout(() => nextFilmOrFinish(), 700);
+  } else if (attempts >= MAX_ATTEMPTS) {
+    gameOver = true;
+    recordFilmResult(false, false);
+    showToast(`The answer was: ${p.answer}`);
+    setTimeout(() => nextFilmOrFinish(), 1800);
+  } else {
+    const wrap = document.getElementById('inputWrap');
+    wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake');
+  }
+}
+
+function skipFilm() {
+  if (gameOver || !gameStarted) return;
+  const p = currentPuzzle();
+  gameOver = true;
+  totalSkips++;
+  localStorage.setItem('fj_skips', totalSkips);
+  document.getElementById('skipAnswer').textContent = p.answer;
+  document.getElementById('skipReveal').classList.add('show');
+  document.getElementById('guessInput').disabled = true;
+  document.getElementById('skipBtn').disabled = true;
+  document.getElementById('hintBtn').disabled = true;
+  document.getElementById('hintBtn').textContent = '💡 Hint 1';
+  recordFilmResult(false, true);
+  setTimeout(() => nextFilmOrFinish(), 2000);
+}
+
+function recordFilmResult(won, skipped) {
+  const p = currentPuzzle();
+  const pts = calcFilmScore(won, attempts);
+  const boxes = guesses.map(g => g.correct ? '✅' : g.almost ? '🟡' : '❌').join('');
+  filmResults.push({
+    answer: p.answer, emojis: p.emojis, won, skipped, attempts,
+    pts: won ? pts : 0,
+    boxes: skipped ? '⏭️' : (won ? boxes : boxes + '❌'),
+  });
+  renderFilmStrip();
+}
+
+function nextFilmOrFinish() {
+  if (filmIdx < FILMS_PER_DAY - 1) { filmIdx++; renderPuzzle(); }
+  else finishDay();
+}
+
+// Number-word ↔ digit equivalences
+const NUM_MAP = {
+  'zero':'0','one':'1','two':'2','three':'3','four':'4','five':'5',
+  'six':'6','seven':'7','eight':'8','nine':'9','ten':'10',
+  'eleven':'11','twelve':'12','thirteen':'13','fourteen':'14','fifteen':'15',
+  'sixteen':'16','seventeen':'17','eighteen':'18','nineteen':'19','twenty':'20',
+};
+
+function norm(s) {
+  let t = s.toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(the|a|an) /, '');
+  // Replace number words with digits
+  t = t.split(' ').map(w => NUM_MAP[w] || w).join(' ');
+  return t;
+}
+
+// Check if a guess matches a series alias (e.g. "james bond", "007" for Casino Royale)
+// Returns the franchise name if matched, null otherwise
+function checkSeriesAlias(val, puzzle) {
+  if (!puzzle.seriesAliases) return null;
+  const v = val.toLowerCase().trim();
+  for (const alias of puzzle.seriesAliases) {
+    if (v === alias.toLowerCase()) return puzzle.seriesName || 'this franchise';
+  }
+  return null;
+}
+
+function addGuessRow(text, correct, almost) {
+  const h = document.getElementById('guessHistory');
+  const row = document.createElement('div'); row.className = 'guess-row';
+  const icon = document.createElement('span'); icon.className = 'guess-icon';
+  icon.textContent = correct ? '✅' : almost ? '🟡' : '❌';
+  const span = document.createElement('span');
+  span.className = 'guess-txt ' + (correct ? 'correct' : almost ? 'almost' : 'wrong');
+  span.textContent = text;
+  row.appendChild(icon); row.appendChild(span);
+  h.appendChild(row); h.scrollTop = h.scrollHeight;
+}
+
+function useHint() {
+  const p = currentPuzzle();
+  if (hintUsed === 0) {
+    // Show hint 1 (vague)
+    document.getElementById('hintReveal').textContent = '💡 ' + p.hint;
+    document.getElementById('hintReveal').classList.add('show');
+    hintUsed = 1;
+    // If hint2 exists, change button to offer it; otherwise disable
+    if (p.hint2) {
+      document.getElementById('hintBtn').textContent = '💡 Hint 2';
+    } else {
+      document.getElementById('hintBtn').disabled = true;
+      document.getElementById('hintBtn').textContent = '💡 Hint';
+    }
+  } else if (hintUsed === 1 && p.hint2) {
+    // Show hint 2 (more specific)
+    document.getElementById('hintReveal2').textContent = '🔍 ' + p.hint2;
+    document.getElementById('hintReveal2').classList.add('show');
+    hintUsed = 2;
+    document.getElementById('hintBtn').disabled = true;
+    document.getElementById('hintBtn').textContent = '💡 Hint';
+  }
+}
+
+function updateLiveScore() {
+  document.getElementById('liveScore').textContent = liveScore;
+}
+
+function finishDay() {
+  stopTimer();
+  localStorage.removeItem('fj_start_time');
+  launchConfetti(); // always fire after the 5th answer
+
+  const wonCount     = filmResults.filter(r => r.won).length;
+  const skippedCount = filmResults.filter(r => r.skipped).length;
+  if (timerSecs > 0) {
+    liveScore += timerSecs * 10;
+    updateLiveScore();
+  }
+  const finalScore = liveScore;
+
+  if (wonCount >= 3) streak++; else streak = 0;
+  solved += wonCount;
+  if (finalScore > bestScore) { bestScore = finalScore; localStorage.setItem('fj_best_score', bestScore); }
+  const solvedResults = filmResults.filter(r => r.won);
+  const totalAtt = solvedResults.reduce((s, r) => s + r.attempts, 0);
+  totalGuesses += totalAtt; gamesForAvg += solvedResults.length;
+  localStorage.setItem('fj_streak', streak);
+  localStorage.setItem('fj_solved', solved);
+  localStorage.setItem('fj_total_guesses', totalGuesses);
+  localStorage.setItem('fj_games_avg', gamesForAvg);
+  updateStatsDisplay();
+
+  localStorage.setItem(getTodayKey(), JSON.stringify({ filmResults, wonCount, skippedCount, time: timerSecs, score: finalScore }));
+
+  // Save to Supabase DB (fire and forget)
+  const dbEntry = {
+    puzzle_date:  getTodayDateStr(),
+    solved:       wonCount > 0,
+    guesses_used: solvedResults.length > 0 ? Math.round(totalAtt / solvedResults.length) : MAX_ATTEMPTS,
+    time_seconds: Math.max(0, TIMER_START - timerSecs),
+    hints_used:   filmResults.some(r => r.hintUsed),
+  };
+  saveResultToDb(dbEntry);
+  saveLocalResultHistory(dbEntry);
+
+  // Share text
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const elapsedSecs = TIMER_START - timerSecs;
+  const timeStr = timerSecs >= 0 ? `${elapsedSecs}s` : `${TIMER_START}s+${Math.abs(timerSecs)}s overtime`;
+  let shareLines = `🎬 FILMOJI — ${dateStr}\n`;
+  filmResults.forEach(r => { shareLines += `${r.emojis.join('')} ${r.boxes}\n`; });
+  shareLines += `\n⭐ Score: ${finalScore} · ⏱ ${timeStr}\nPlay at filmoji.lol`;
+  shareText = shareLines;
+
+  const summary = document.getElementById('filmSummary');
+  summary.innerHTML = '';
+  filmResults.forEach(r => {
+    const row = document.createElement('div'); row.className = 'film-summary-row';
+    row.innerHTML = `
+      <span class="film-summary-emoji">${r.emojis[0]}</span>
+      <div class="film-summary-info">
+        <div class="film-summary-title">${r.answer}</div>
+        <div class="film-summary-result">${r.skipped?'⏭️ Skipped':r.won?`✅ ${r.attempts} guess${r.attempts>1?'es':''}`:' ❌ Not solved'}</div>
+      </div>
+      ${r.won ? `<span class="film-summary-pts">+${r.pts}</span>` : ''}
+      <span class="film-summary-badge">${r.skipped?'⏭️':r.won?'🏆':'💔'}</span>
+    `;
+    summary.appendChild(row);
+  });
+
+  const perfect = wonCount === FILMS_PER_DAY;
+  document.getElementById('rEmoji').textContent = perfect ? '🏆' : wonCount >= 3 ? '🎬' : '😅';
+  document.getElementById('rTitle').textContent = perfect ? 'Perfect Score!' : wonCount >= 3 ? `${wonCount} of 5!` : `${wonCount} of 5 — Keep going!`;
+  document.getElementById('rSubtitle').textContent = `⏱ ${timeStr} · ${wonCount}/${FILMS_PER_DAY} solved`;
+  document.getElementById('rScore').textContent = finalScore;
+  document.getElementById('shareBox').textContent = shareText;
+
+  saveToLeaderboard(wonCount, timerSecs, finalScore);
+  setTimeout(() => {
+    document.getElementById('resultOverlay').classList.add('show');
+    // Show streak save prompt after result card appears
+    setTimeout(() => maybeShowStreakPrompt(), 1200);
+  }, 400);
+  renderLeaderboard();
+}
+
+function showAlreadyPlayed(saved) {
+  filmResults = saved.filmResults || [];
+  document.getElementById('alreadyPlayed').classList.add('show');
+  document.getElementById('startOverlay').classList.add('hidden');
+  document.getElementById('guessInput').disabled = true;
+  document.getElementById('skipBtn').disabled = true;
+  document.getElementById('hintBtn').disabled = true;
+  const lastFilm = ALL_PUZZLES[filmQueue[FILMS_PER_DAY - 1]];
+  const stage = document.getElementById('emojiStage');
+  stage.innerHTML = '';
+  lastFilm.emojis.forEach((em, i) => {
+    const s = document.createElement('span'); s.className = 'emoji-orb';
+    s.textContent = em; s.style.animationDelay = (i * 0.1) + 's';
+    stage.appendChild(s);
+  });
+  filmIdx = FILMS_PER_DAY - 1;
+  if (saved.score) { liveScore = saved.score; updateLiveScore(); }
+  renderFilmStrip();
+}
+
+const TIMER_START = 60;
+let timerSecs    = TIMER_START;
+let timerInterval= null;
+let penaltyAccum = 0;
+
+function startTimer(startTime) {
+  clearInterval(timerInterval);
+  penaltyAccum = 0;
+  function tick() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    timerSecs = TIMER_START - elapsed;
+    updateTimerDisplay();
+    if (timerSecs < 0) {
+      const negSecs = Math.abs(timerSecs);
+      if (negSecs > penaltyAccum) {
+        const newPenalties = negSecs - penaltyAccum;
+        penaltyAccum = negSecs;
+        liveScore = Math.max(0, liveScore - (newPenalties * 10));
+        updateLiveScore();
+      }
+    }
+  }
+  tick();
+  timerInterval = setInterval(tick, 1000);
+}
+
+function stopTimer() { clearInterval(timerInterval); }
+
+function updateTimerDisplay() {
+  const chip = document.getElementById('timerChip');
+  const disp = document.getElementById('timerDisp');
+  if (timerSecs >= 0) {
+    const m = Math.floor(timerSecs / 60);
+    const s = timerSecs % 60;
+    disp.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    if (timerSecs > 20) { chip.className = 'timer-chip'; }
+    else if (timerSecs > 10) { chip.className = 'timer-chip warning'; }
+    else { chip.className = 'timer-chip danger'; }
+  } else {
+    disp.textContent = `-${String(Math.abs(timerSecs)).padStart(2,'0')}s`;
+    chip.className = 'timer-chip negative';
+  }
+}
+
+// ══ Leaderboard (local + DB) ══
+function getLbData() {
+  try { return JSON.parse(localStorage.getItem('fj_leaderboard') || '[]'); } catch(e) { return []; }
+}
+
+function saveToLeaderboard(wonCount, time, score) {
+  if (!username) return;
+  const data = getLbData();
+  const existing = data.find(e => e.username === username);
+  const avgG = gamesForAvg > 0 ? Math.max(1, (totalGuesses / gamesForAvg)).toFixed(1) : '—';
+  if (existing) {
+    existing.streak = streak; existing.solved = solved;
+    existing.avgGuesses = avgG; existing.skips = totalSkips;
+    existing.bestScore = Math.max(existing.bestScore || 0, score);
+    existing.bestTime = wonCount > 0 ? Math.min(existing.bestTime || 9999, time) : existing.bestTime;
+    existing.updated = Date.now();
+  } else {
+    data.push({ username, streak, solved, avgGuesses: avgG, skips: totalSkips, bestScore: score, bestTime: wonCount > 0 ? time : null, updated: Date.now() });
+  }
+  localStorage.setItem('fj_leaderboard', JSON.stringify(data));
+}
+
+async function renderLeaderboard() {
+  if (username) {
+    document.getElementById('myStats').classList.add('show');
+    document.getElementById('myStreak').textContent = streak;
+    document.getElementById('mySolved').textContent = solved;
+    document.getElementById('myBestScore').textContent = bestScore || '—';
+    document.getElementById('myAvg').textContent = gamesForAvg > 0 ? Math.max(1, (totalGuesses/gamesForAvg)).toFixed(1) : '—';
+  }
+
+  // Try to fetch live DB leaderboard first
+  const dbData = await fetchDbLeaderboard();
+  if (dbData && dbData.length > 0) {
+    renderLeaderboardRows(dbData.map(e => ({
+      username: e.username || 'Anonymous',
+      streak: e.current_streak,
+      solved: e.puzzles_solved,
+      bestScore: e.total_score,
+    })));
+    return;
+  }
+
+  // Fall back to local leaderboard
+  const data = getLbData().sort((a,b) => {
+    if (currentLbTab === 'score')  return (b.bestScore||0) - (a.bestScore||0);
+    if (currentLbTab === 'streak') return (b.streak||0) - (a.streak||0);
+    return (b.solved||0) - (a.solved||0);
+  });
+  renderLeaderboardRows(data);
+}
+
+function renderLeaderboardRows(data) {
+  const sorted = [...data].sort((a,b) => {
+    if (currentLbTab === 'score')  return (b.bestScore||0) - (a.bestScore||0);
+    if (currentLbTab === 'streak') return (b.streak||0) - (a.streak||0);
+    return (b.solved||0) - (a.solved||0);
+  });
+  const table = document.getElementById('lbTable');
+  table.innerHTML = '';
+  if (!sorted.length) { table.innerHTML = '<div class="lb-empty">🎬 No scores yet — play today to appear here!</div>'; return; }
+  sorted.forEach((entry, i) => {
+    const isMe = entry.username === username;
+    const rankClass = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+    const row = document.createElement('div');
+    row.className = 'lb-row'+(rankClass?' '+rankClass:'')+(isMe?' mine':'');
+    row.style.animationDelay = (i*0.06)+'s';
+    const rankIcon = i===0?'🥇':i===1?'🥈':i===2?'🥉':null;
+    const rankHTML = rankIcon ? `<div class="lb-rank ${rankClass}-txt">${rankIcon}</div>` : `<div class="lb-rank num">${i+1}</div>`;
+    let scoreMain, scoreLabel;
+    if (currentLbTab==='score')  { scoreMain=entry.bestScore||0; scoreLabel='best score'; }
+    else if (currentLbTab==='streak') { scoreMain=entry.streak||0; scoreLabel='streak'; }
+    else { scoreMain=entry.solved||0; scoreLabel='films solved'; }
+    const meta = [`🔥${entry.streak||0}`,`✅${entry.solved||0}`,`⭐${entry.bestScore||0}`].join(' · ');
+    row.innerHTML = `${rankHTML}
+      <div class="lb-info">
+        <div class="lb-name">${entry.username}${isMe?'<span class="you-badge">you</span>':''}</div>
+        <div class="lb-meta">${meta}</div>
+      </div>
+      <div class="lb-score"><div class="lb-score-main">${scoreMain}</div><div class="lb-score-label">${scoreLabel}</div></div>`;
+    table.appendChild(row);
+  });
+}
+
+function switchLbTab(tab, el) {
+  currentLbTab = tab;
+  document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderLeaderboard();
+}
+
+function copyShare() { navigator.clipboard.writeText(shareText).then(()=>showToast('📋 Score copied!')).catch(()=>showToast('Copy from the box above!')); }
+function shareToX() { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText.slice(0,270))}`,'_blank'); }
+function shareViaSMS() { window.open(`sms:?&body=${encodeURIComponent(shareText)}`,'_blank'); }
+function shareToIG() {
+  navigator.clipboard.writeText(shareText)
+    .then(()=>{ showToast('📋 Copied — paste on Instagram!'); setTimeout(()=>window.open('https://www.instagram.com/','_blank'),800); })
+    .catch(()=>{ showToast('Copy from the box, then paste on Instagram!'); setTimeout(()=>window.open('https://www.instagram.com/','_blank'),800); });
+}
+function goLeaderboard() { document.getElementById('resultOverlay').classList.remove('show'); showPage('leaderboard'); }
+function closeResult() { document.getElementById('resultOverlay').classList.remove('show'); }
+
+function saveUsername() {
+  const val = document.getElementById('usernameInput').value.trim();
+  if (!val) { showToast('Please enter a name!'); return; }
+  username = val; localStorage.setItem('fj_username', username);
+  document.getElementById('usernameModal').classList.remove('show');
+  updateUserChip(); renderLeaderboard(); showToast(`Welcome, ${username}! 🎬`);
+}
+function changeUsername() {
+  document.getElementById('usernameInput').value = username;
+  document.getElementById('usernameModal').classList.add('show');
+  setTimeout(() => document.getElementById('usernameInput').focus(), 100);
+}
+
+function updateUserChip() {
+  const label = document.getElementById('userLabel');
+  const avatar = document.getElementById('userAvatarEl');
+  const gBtn = document.getElementById('googleSignInBtn');
+  if (_sbUser) {
+    const name = _sbUser.user_metadata?.name || _sbUser.email || 'Me';
+    const pic  = _sbUser.user_metadata?.avatar_url;
+    label.textContent = name.split(' ')[0];
+    if (pic) {
+      avatar.innerHTML = `<img src="${pic}" style="width:20px;height:20px;border-radius:50%;object-fit:cover">`;
+    } else {
+      avatar.textContent = '✅';
+    }
+    if (gBtn) gBtn.style.display = 'none';
+  } else {
+    label.textContent = username || 'Set name';
+    avatar.textContent = '👤';
+    if (gBtn) gBtn.style.display = 'flex';
+  }
+}
+
+function updateStatsDisplay() {
+  document.getElementById('streakDisp').textContent = streak;
+  document.getElementById('solvedDisp').textContent = solved;
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    if ((name==='game'&&t.textContent.includes('Play'))||(name==='leaderboard'&&t.textContent.includes('Board')))
+      t.classList.add('active');
+  });
+  if (name==='leaderboard') renderLeaderboard();
+}
+
+function startNextPuzzleCountdown() {
+  function update() {
+    const now=new Date(), midnight=new Date(now); midnight.setHours(24,0,0,0);
+    const diff=midnight-now, h=Math.floor(diff/3600000), m=Math.floor((diff%3600000)/60000), s=Math.floor((diff%60000)/1000);
+    const str=`Next 5 films in ${h}h ${m}m ${s}s`;
+    const el=document.getElementById('nextCountdownGame'); if(el) el.textContent=str;
+  }
+  update(); setInterval(update, 1000);
+}
+
+function launchConfetti() {
+  const canvas=document.getElementById('confetti'), ctx=canvas.getContext('2d');
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const cols=['#E8A020','#C0392B','#F5EDD6','#2E7D32','#ffffff','#FFD700'];
+  const pieces=Array.from({length:130},()=>({
+    x:Math.random()*canvas.width, y:-10-Math.random()*120, r:4+Math.random()*5,
+    color:cols[Math.floor(Math.random()*cols.length)],
+    vx:(Math.random()-.5)*5, vy:3+Math.random()*4, rot:Math.random()*Math.PI*2,
+    vrot:(Math.random()-.5)*0.18, shape:Math.random()>.5?'rect':'circle',
+    w:6+Math.random()*10, h:4+Math.random()*6,
+  }));
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p=>{
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.color;
+      if(p.shape==='circle'){ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();}
+      else{ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);}
+      ctx.restore();
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.vrot; p.vy+=0.04;
+    });
+    if(++frame<200) requestAnimationFrame(draw);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+const PAYMENT_INFO = {
+  venmo:{icon:'💙',title:'Support via Venmo',desc:'Send any amount to our Venmo. Every contribution helps keep Filmoji free!',label:'Venmo Username',address:'@YourVenmoUsername',link:'https://venmo.com/YourVenmoUsername',qrText:'venmo.com/YourVenmoUsername'},
+  solana:{icon:'◎',title:'Support via Solana Pay',desc:'Send SOL directly to our wallet. Fast, feeless, and very web3.',label:'Solana Wallet Address',address:'YOUR_SOLANA_WALLET_ADDRESS_HERE',link:null,qrText:'SOL Wallet'},
+  bitcoin:{icon:'₿',title:'Support via Bitcoin',desc:'Send BTC to our wallet address below. Thank you!',label:'Bitcoin Address',address:'YOUR_BITCOIN_ADDRESS_HERE',link:null,qrText:'BTC Wallet'},
+};
+let currentPayType=null;
+function openPayModal(type){
+  const info=PAYMENT_INFO[type]; currentPayType=type;
+  document.getElementById('payIcon').textContent=info.icon;
+  document.getElementById('payTitle').textContent=info.title;
+  document.getElementById('payDesc').textContent=info.desc;
+  document.getElementById('payAddressBox').innerHTML='<span class="pay-address-label">'+info.label+'</span>'+info.address;
+  document.getElementById('payQR').innerHTML='<div style="text-align:center;padding:10px"><div style="font-size:32px;margin-bottom:6px">'+info.icon+'</div><div style="font-size:10px;font-family:\'DM Mono\',monospace;color:#8B6A3E;letter-spacing:1px;line-height:1.5">'+info.qrText+'</div>'+(info.link?'<div style="margin-top:8px;font-size:10px"><a href="'+info.link+'" target="_blank" style="color:#C17A10;font-family:\'DM Mono\',monospace">Open in app →</a></div>':'')+'</div>';
+  document.getElementById('payModal').classList.add('show');
+}
+function closePayModal(){document.getElementById('payModal').classList.remove('show');currentPayType=null;}
+function copyPayAddress(){
+  if(!currentPayType)return;
+  navigator.clipboard.writeText(PAYMENT_INFO[currentPayType].address).then(()=>showToast('📋 Address copied!')).catch(()=>showToast('Copy from the box above!'));
+  const link=PAYMENT_INFO[currentPayType].link; if(link)window.open(link,'_blank');
+}
+
+['usernameModal','payModal'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{
+    if(e.target===document.getElementById(id)){
+      if(id==='usernameModal'&&!username)return;
+      document.getElementById(id).classList.remove('show');
+    }
+  });
+});
+document.getElementById('resultOverlay').addEventListener('click', closeResult);
+document.getElementById('streakModal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('streakModal')) closeStreakModal();
+});
+
+// ── Boot ──
+initAuth(); // init Supabase auth first
+
+const todaySaved = localStorage.getItem(getTodayKey());
+if (!todaySaved) {
+  const startTime = localStorage.getItem('fj_start_time');
+  if (startTime) {
+    filmQueue = getTodayQueue();
+    filmIdx = 0; filmResults = []; liveScore = 0;
+    gameStarted = true;
+    document.getElementById('startOverlay').classList.add('hidden');
+    updateUserChip(); updateStatsDisplay();
+    const d = new Date();
+    document.getElementById('dateLabel').textContent = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    startTimer(parseInt(startTime));
+    renderFilmStrip();
+    renderPuzzle();
+    renderLeaderboard();
+    startNextPuzzleCountdown();
+  } else {
+    init();
+  }
+} else {
+  init();
+}
+</script>
+</body>
+</html>
